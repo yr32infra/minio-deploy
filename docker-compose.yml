@@ -1,0 +1,64 @@
+version: '3.9'
+services:
+  minio:
+    image: minio/minio:RELEASE.2024-06-29T01-20-47Z@sha256:fce0a90a37bb2887c850b68b61a0ac8ac02ea218b58eaea96bb7ca69eb503e20
+    hostname: minio
+    container_name: minio__minio
+    restart: unless-stopped
+
+    environment:
+      - MINIO_ROOT_USER=root
+      - MINIO_ROOT_PASSWORD=${MINIO_PASSWORD}
+
+    volumes:
+      - type: volume
+        source: minio_data
+        target: /export
+
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+
+    command: server /export --address :9000 --console-address :9001
+
+    networks:
+      - default
+
+    deploy:
+      resources:
+        limits:
+          memory: 8192m
+
+  cloudflared:
+    image: cloudflare/cloudflared:2024.6.0@sha256:8245fa2eeeabf437b061909cd59f123b39730f626bc676dc37cd3fb9f6880580
+    hostname: cloudflared
+    container_name: minio__cloudflared
+    restart: unless-stopped
+
+    environment:
+      TUNNEL_METRICS: 0.0.0.0:9126
+      TUNNEL_LOGFILE: /dev/stdout
+
+    command: tunnel run --token ${TUNNEL_TOKEN}
+
+    networks:
+      default:
+
+    deploy:
+      resources:
+        limits:
+          memory: 4096m
+
+volumes:
+  minio_data:
+    name: minio__minio_data
+
+networks:
+  default:
+    name: minio__default
